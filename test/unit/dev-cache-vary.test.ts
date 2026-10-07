@@ -25,6 +25,32 @@ it.each<{
     warning: "cookie",
   },
   {
+    name: "legacy Vercel SWR does not use native header keys",
+    config: {
+      preset: "vercel",
+      routeRules: { "/**": { swr: 60, cache: { varies: ["cookie"] } } },
+    },
+    vary: "Cookie",
+    warning: "cookie",
+  },
+  {
+    name: "Vercel native SWR opt-in keeps native header keys",
+    config: {
+      preset: "vercel",
+      future: { nativeSWR: true },
+      routeRules: { "/**": { swr: 60, cache: { varies: ["cookie"] } } },
+    },
+    vary: "Cookie",
+  },
+  {
+    name: "an explicit ISR opt-out keeps native header keys",
+    config: {
+      preset: "vercel",
+      routeRules: { "/**": { isr: false, swr: 60, cache: { varies: ["cookie"] } } },
+    },
+    vary: "Cookie",
+  },
+  {
     name: "case-insensitive covered headers",
     config: { routeRules: { "/**": { cache: { varies: ["ACCEPT-LANGUAGE"] } } } },
     vary: "Accept-Language",
