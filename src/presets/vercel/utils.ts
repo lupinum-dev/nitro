@@ -530,7 +530,7 @@ export function deprecateSWR(nitro: Nitro) {
       hasLegacyOptions = true;
     }
     if (value.cache && _hasProp(value.cache, "swr")) {
-      value.isr = value.cache.swr;
+      value.isr = value.cache.swr ? (value.cache.maxAge ?? true) : false;
       hasLegacyOptions = true;
     }
   }
