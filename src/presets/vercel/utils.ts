@@ -513,7 +513,7 @@ export function getPrerenderOverrides(prerenderedRoutes: PrerenderRoute[] = []) 
   return overrides;
 }
 
-export function deprecateSWR(nitro: Nitro) {
+export function deprecateSWR(nitro: Nitro, warn = true) {
   if (nitro.options.future.nativeSWR) {
     return;
   }
@@ -534,7 +534,7 @@ export function deprecateSWR(nitro: Nitro) {
       hasLegacyOptions = true;
     }
   }
-  if (hasLegacyOptions && !isTest) {
+  if (hasLegacyOptions && warn && !isTest) {
     nitro.logger.warn(
       "Nitro now uses `isr` option to configure ISR behavior on Vercel. Backwards-compatible support for `static` and `swr` options within the Vercel Build Options API will be removed in the future versions. Set `future.nativeSWR: true` nitro config disable this warning."
     );

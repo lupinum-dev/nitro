@@ -1,5 +1,6 @@
 import type { Nitro } from "nitro/types";
 import type { H3Event, HTTPHandler } from "h3";
+import { deprecateSWR } from "../presets/vercel/utils.ts";
 import { createRouteRulesMatcher } from "h3/rules";
 import { createProxyServer, type ProxyServerOptions } from "httpxy";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -40,12 +41,22 @@ export class NitroDevApp {
       onResponse: (response, event) => {
         const vary = response.headers.get("vary");
         if (!vary || this.hasRoute(event.req.method, event.url.pathname)) return;
-        const { routeRules } = createRouteRulesMatcher(this.nitro.options.routeRules, {
+        // Apply the production preset's mapping to a snapshot; never mutate dev rules.
+        let rules = this.nitro.options.routeRules;
+        if (this.nitro.options.preset === "vercel-dev") {
+          rules = structuredClone(rules);
+          deprecateSWR(
+            { ...this.nitro, options: { ...this.nitro.options, routeRules: rules } },
+            false
+          );
+        }
+        const { routeRules } = createRouteRulesMatcher(rules, {
           baseURL: this.nitro.options.baseURL,
           handlers: { cache: undefined, proxy: undefined },
         })(event.req.method, event.url.pathname);
-        if (!routeRules.isr && !routeRules.cache) return;
-        const varies = routeRules.isr
+        const isr = routeRules.isr;
+        if (!isr && !routeRules.cache) return;
+        const varies = isr
           ? []
           : ((typeof routeRules.cache === "object" ? routeRules.cache.varies : undefined) ??
             this.nitro.options.cache.defaults?.varies ??
@@ -60,7 +71,7 @@ export class NitroDevApp {
         if (uncovered.length) {
           this.nitro.logger.warn(
             `[cache] ${event.url.pathname} sets Vary: ${uncovered.join(", ")}, but these headers are not in its cache key. ` +
-              (routeRules.isr
+              (isr
                 ? "Use distinct URLs for variants or disable ISR for this route."
                 : "Add the headers to cache.varies or disable caching for this route.")
           );
