@@ -43,6 +43,16 @@ it.each<{
     vary: "Cookie",
   },
   {
+    name: "a directly served development route",
+    config: {
+      routeRules: { "/**": { swr: 60 } },
+      devHandlers: [
+        { route: "/page", handler: () => new Response("ok", { headers: { vary: "Cookie" } }) },
+      ],
+    },
+    vary: "Cookie",
+  },
+  {
     name: "no Vary header",
     config: { routeRules: { "/**": { isr: 60 } } },
   },

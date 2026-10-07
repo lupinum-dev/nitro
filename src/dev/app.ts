@@ -1,5 +1,6 @@
 import type { Nitro } from "nitro/types";
 import type { H3Event, HTTPHandler } from "h3";
+import { createRouteRulesMatcher } from "h3/rules";
 import { createProxyServer, type ProxyServerOptions } from "httpxy";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
@@ -36,6 +37,35 @@ export class NitroDevApp {
     // Init h3 app
     const app = new H3({
       debug: true,
+      onResponse: (response, event) => {
+        const vary = response.headers.get("vary");
+        if (!vary || this.hasRoute(event.req.method, event.url.pathname)) return;
+        const { routeRules } = createRouteRulesMatcher(this.nitro.options.routeRules, {
+          baseURL: this.nitro.options.baseURL,
+          handlers: { cache: undefined, proxy: undefined },
+        })(event.req.method, event.url.pathname);
+        if (!routeRules.isr && !routeRules.cache) return;
+        const varies = routeRules.isr
+          ? []
+          : ((typeof routeRules.cache === "object" ? routeRules.cache.varies : undefined) ??
+            this.nitro.options.cache.defaults?.varies ??
+            []);
+        const uncovered = vary
+          .split(",")
+          .map((header) => header.trim().toLowerCase())
+          .filter(
+            (header) =>
+              header && (header === "*" || !varies.some((key) => key.toLowerCase() === header))
+          );
+        if (uncovered.length) {
+          this.nitro.logger.warn(
+            `[cache] ${event.url.pathname} sets Vary: ${uncovered.join(", ")}, but these headers are not in its cache key. ` +
+              (routeRules.isr
+                ? "Use distinct URLs for variants or disable ISR for this route."
+                : "Add the headers to cache.varies or disable caching for this route.")
+          );
+        }
+      },
       onError: async (error, event) => {
         const errorHandler = this.nitro.options.devErrorHandler || devErrorHandler;
         await loadStackTrace(error).catch(() => {});
